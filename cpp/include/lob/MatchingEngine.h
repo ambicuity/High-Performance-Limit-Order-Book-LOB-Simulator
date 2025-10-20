@@ -41,6 +41,11 @@ public:
     [[nodiscard]] bool best_bid_ask(BookTop& out) const noexcept {
         return book_.best_bid_ask(out);
     }
+    
+    // Get market depth snapshot
+    void get_depth(DepthSnapshot& out, size_t max_levels = 10) const noexcept {
+        book_.get_depth(out, max_levels);
+    }
 
     // Get current timestamp
     [[nodiscard]] uint64_t now() const noexcept {

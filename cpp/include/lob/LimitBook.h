@@ -28,6 +28,9 @@ public:
 
     // Get best bid/ask snapshot
     [[nodiscard]] bool best_bid_ask(BookTop& out) const noexcept;
+    
+    // Get market depth snapshot up to specified levels
+    void get_depth(DepthSnapshot& out, size_t max_levels = 10) const noexcept;
 
     // Get total number of active orders
     [[nodiscard]] size_t total_orders() const noexcept {

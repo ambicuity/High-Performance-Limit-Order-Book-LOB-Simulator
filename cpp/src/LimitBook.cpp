@@ -359,4 +359,26 @@ void LimitBook::cleanup_empty_level(Side side, Price price) {
     }
 }
 
+void LimitBook::get_depth(DepthSnapshot& out, size_t max_levels) const noexcept {
+    out.bids.clear();
+    out.asks.clear();
+    out.ts = time_source_->now_ns();
+    
+    // Collect bid levels (already sorted by descending price)
+    size_t count = 0;
+    for (const auto& [price, level] : bids_) {
+        if (count >= max_levels) break;
+        out.bids.emplace_back(price, level.total_qty(), level.size());
+        ++count;
+    }
+    
+    // Collect ask levels (already sorted by ascending price)
+    count = 0;
+    for (const auto& [price, level] : asks_) {
+        if (count >= max_levels) break;
+        out.asks.emplace_back(price, level.total_qty(), level.size());
+        ++count;
+    }
+}
+
 } // namespace lob

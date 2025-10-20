@@ -3,6 +3,7 @@
 #include "OrderId.h"
 #include "Price.h"
 #include <cstdint>
+#include <vector>
 
 namespace lob {
 
@@ -83,6 +84,26 @@ struct BookTop {
     BookTop() noexcept 
         : best_bid(INVALID_PRICE), bid_qty(0), 
           best_ask(INVALID_PRICE), ask_qty(0), ts(0) {}
+};
+
+// Represents a single level in a depth snapshot
+struct DepthLevel {
+    Price price;
+    uint64_t qty;
+    size_t order_count;
+    
+    DepthLevel() noexcept : price(INVALID_PRICE), qty(0), order_count(0) {}
+    DepthLevel(Price p, uint64_t q, size_t count) noexcept 
+        : price(p), qty(q), order_count(count) {}
+};
+
+// Market depth snapshot with multiple levels
+struct DepthSnapshot {
+    std::vector<DepthLevel> bids;
+    std::vector<DepthLevel> asks;
+    uint64_t ts;
+    
+    DepthSnapshot() noexcept : ts(0) {}
 };
 
 } // namespace lob

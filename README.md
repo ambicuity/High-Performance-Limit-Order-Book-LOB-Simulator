@@ -13,6 +13,12 @@ A production-grade matching engine and limit order book implementation in C++20 
 - **Deterministic**: Fully reproducible simulations with injectable time sources
 - **Price-Time Priority**: Strict FIFO matching at each price level
 - **Multiple Order Types**: Limit, Market, IOC (Immediate-Or-Cancel), FOK (Fill-Or-Kill)
+- **Iceberg Orders**: Hidden order quantities with visible display amounts
+- **Pegged Orders**: Orders pegged to mid price, best bid, or best ask
+- **Multi-Symbol Support**: Trade multiple symbols with independent order books
+- **Market Depth Snapshots**: Get order book depth at configurable levels
+- **Market Data Replay**: Replay historical order flow from CSV files
+- **WebSocket Feed**: Real-time market data streaming for visualization
 - **Lock-Free Communication**: SPSC ring buffers for event streaming
 - **Python Bindings**: Ergonomic API with pybind11 for strategy development
 - **Comprehensive Testing**: Unit tests, integration tests, and benchmarks
@@ -210,6 +216,37 @@ cd bindings/python/examples
 python market_maker_demo.py
 ```
 
+### Depth Snapshot Demo
+
+View multi-level order book depth (`bindings/python/examples/depth_snapshot_demo.py`):
+
+```bash
+cd bindings/python/examples
+python depth_snapshot_demo.py
+```
+
+### Multi-Symbol Trading
+
+Trade multiple symbols simultaneously (`bindings/python/examples/multi_symbol_demo.py`):
+
+```bash
+cd bindings/python/examples
+python multi_symbol_demo.py
+```
+
+### Market Data Replay
+
+Replay historical order flow from CSV (`bindings/python/examples/market_data_replay_demo.py`):
+
+```bash
+cd bindings/python/examples
+python market_data_replay_demo.py
+```
+
+### Live Visualization
+
+Open `docs/visualization.html` in a web browser to see real-time order book visualization via WebSocket feed.
+
 ### Order Flow Generation
 
 Generate synthetic order flow for testing:
@@ -248,6 +285,19 @@ Fills available quantity immediately, cancels remainder. Never rests on book.
 ### FOK (Fill-Or-Kill)
 Executes in full or rejects entirely. All-or-nothing semantics.
 
+### Iceberg Order
+Order with hidden quantity. Only displays a portion of the total quantity to the market.
+- `display_qty`: Visible quantity shown in order book
+- `refresh_qty`: Quantity to refresh when display portion is filled
+- Useful for large orders to avoid market impact
+
+### Pegged Order
+Order price automatically adjusts based on market conditions:
+- **Mid Peg**: Pegged to mid-price between best bid and ask
+- **Best Bid Peg**: Follows the best bid price
+- **Best Ask Peg**: Follows the best ask price
+- `offset`: Fixed offset in ticks from the peg reference
+
 ## Event Types
 
 - **TradeEvent**: Order match with price, quantity, maker/taker IDs
@@ -261,20 +311,30 @@ Executes in full or rejects entirely. All-or-nothing semantics.
 
 ### Current Limitations
 
-- Single instrument/symbol only
 - No stop orders or conditional orders
 - No order modification without losing time priority
 - Limited to FIFO matching (no pro-rata)
+- WebSocket feed is a simplified implementation (requires external library for production)
+- Pegged orders require manual repricing (auto-repricing not yet implemented)
 
-### Future Enhancements
+### Completed Enhancements
 
-- [ ] Iceberg/hidden orders
-- [ ] Pegged orders (to mid, best bid/ask)
-- [ ] Multi-symbol support with sharding
-- [ ] Order book snapshots at depth
-- [ ] Market data replay from real exchanges
-- [ ] WebSocket feed for live visualization
-- [ ] FPGA acceleration research
+- [x] Iceberg/hidden orders
+- [x] Pegged orders (to mid, best bid/ask)
+- [x] Multi-symbol support with sharding
+- [x] Order book snapshots at depth
+- [x] Market data replay from real exchanges
+- [x] WebSocket feed for live visualization
+- [x] FPGA acceleration research
+
+### Future Work
+
+- [ ] Automatic pegged order repricing on market updates
+- [ ] Stop orders and stop-limit orders
+- [ ] Pro-rata matching algorithm option
+- [ ] Full WebSocket server implementation with authentication
+- [ ] Historical data connectors for major exchanges
+- [ ] FPGA proof-of-concept implementation
 
 ## Testing
 
