@@ -45,3 +45,6 @@ test_book_basic
 test_engine_fills
 bench_match_engine
 lobsim
+
+# CodeQL artifacts
+_codeql_*
