@@ -31,6 +31,9 @@ target_include_directories(lob_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/include
 )
 
+# Enable position-independent code for shared library linking
+set_target_properties(lob_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Python bindings
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 if(BUILD_PYTHON_BINDINGS)
