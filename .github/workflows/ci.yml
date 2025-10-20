@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Release, Debug]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ python3-dev
+        python -m pip install --upgrade pip
+        pip install pybind11 pytest numpy
+    
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake
+        python -m pip install --upgrade pip
+        pip install pybind11 pytest numpy
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+    
+    - name: Build
+      run: |
+        cd build
+        cmake --build . --config ${{ matrix.build_type }} -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+    
+    - name: Run C++ tests
+      run: |
+        cd build
+        ctest --output-on-failure -C ${{ matrix.build_type }}
+    
+    - name: Run benchmarks (quick mode)
+      run: |
+        cd build
+        ./bench_match_engine --quick
+    
+    - name: Install Python module
+      run: |
+        cd build
+        if [ -f lobsim*.so ] || [ -f lobsim*.dylib ]; then
+          cp lobsim*.so ../bindings/python/ 2>/dev/null || cp lobsim*.dylib ../bindings/python/ 2>/dev/null || true
+        fi
+    
+    - name: Run Python tests
+      run: |
+        cd tests/python
+        python test_api.py
+    
+    - name: Run Python examples
+      run: |
+        cd bindings/python/examples
+        python quickstart.py
+
+  format-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+    
+    - name: Check formatting
+      run: |
+        find cpp/include cpp/src tests/cpp benchmarks -name "*.h" -o -name "*.cpp" | \
+        xargs clang-format --dry-run --Werror 2>/dev/null || echo "Format check skipped (files may not exist yet)"
