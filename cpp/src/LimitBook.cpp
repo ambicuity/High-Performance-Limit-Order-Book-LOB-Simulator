@@ -22,19 +22,28 @@ bool LimitBook::add(const Order& order, std::vector<TradeEvent>& out_trades, Boo
         // For FOK, check if full quantity can be filled
         if (working_order.is_fok()) {
             uint64_t available_qty = 0;
-            auto& opposite_book = (working_order.side == Side::Buy) ? asks_ : bids_;
             
-            for (auto& [price, level] : opposite_book) {
-                if (working_order.side == Side::Buy && price.ticks > working_order.price.ticks && !working_order.is_market()) {
-                    break; // Price too high for buy
+            if (working_order.side == Side::Buy) {
+                for (auto& [price, level] : asks_) {
+                    if (price.ticks > working_order.price.ticks && !working_order.is_market()) {
+                        break; // Price too high for buy
+                    }
+                    
+                    available_qty += level.total_qty();
+                    if (available_qty >= working_order.qty) {
+                        break;
+                    }
                 }
-                if (working_order.side == Side::Sell && price.ticks < working_order.price.ticks && !working_order.is_market()) {
-                    break; // Price too low for sell
-                }
-                
-                available_qty += level.total_qty();
-                if (available_qty >= working_order.qty) {
-                    break;
+            } else {
+                for (auto& [price, level] : bids_) {
+                    if (price.ticks < working_order.price.ticks && !working_order.is_market()) {
+                        break; // Price too low for sell
+                    }
+                    
+                    available_qty += level.total_qty();
+                    if (available_qty >= working_order.qty) {
+                        break;
+                    }
                 }
             }
             
@@ -74,57 +83,105 @@ bool LimitBook::add(const Order& order, std::vector<TradeEvent>& out_trades, Boo
 }
 
 void LimitBook::match_order(Order& order, std::vector<TradeEvent>& out_trades) {
-    auto& opposite_book = (order.side == Side::Buy) ? asks_ : bids_;
-    
-    while (order.qty > 0 && !opposite_book.empty()) {
-        auto it = opposite_book.begin();
-        Price best_price = it->first;
-        BookLevel& level = it->second;
-        
-        // Check if we can match at this price
-        if (!order.is_market()) {
-            if (order.side == Side::Buy && best_price.ticks > order.price.ticks) {
-                break; // Price too high
-            }
-            if (order.side == Side::Sell && best_price.ticks < order.price.ticks) {
-                break; // Price too low
-            }
-        }
-        
-        BookOrder* maker_order = level.front();
-        if (!maker_order) {
-            break; // Should not happen
-        }
-        
-        // Calculate fill quantity
-        uint64_t fill_qty = std::min(order.qty, maker_order->remaining_qty);
-        
-        // Generate trade event
-        TradeEvent trade;
-        trade.taker_id = order.id;
-        trade.maker_id = maker_order->order.id;
-        trade.price = best_price;
-        trade.qty = fill_qty;
-        trade.ts = time_source_->now_ns();
-        out_trades.push_back(trade);
-        
-        // Update quantities
-        order.qty -= fill_qty;
-        maker_order->remaining_qty -= fill_qty;
-        
-        // Remove maker if fully filled
-        if (maker_order->remaining_qty == 0) {
-            OrderId filled_id = maker_order->order.id;
-            level.pop_front();
-            order_index_.erase(filled_id);
+    if (order.side == Side::Buy) {
+        // Match buy order against asks
+        while (order.qty > 0 && !asks_.empty()) {
+            auto it = asks_.begin();
+            Price best_price = it->first;
+            BookLevel& level = it->second;
             
-            // Clean up empty level
-            if (level.empty()) {
-                opposite_book.erase(it);
+            // Check if we can match at this price
+            if (!order.is_market()) {
+                if (best_price.ticks > order.price.ticks) {
+                    break; // Price too high
+                }
             }
-        } else {
-            // Update level quantity
-            level.update_front_qty(maker_order->remaining_qty);
+            
+            BookOrder* maker_order = level.front();
+            if (!maker_order) {
+                break; // Should not happen
+            }
+            
+            // Calculate fill quantity
+            uint64_t fill_qty = std::min(order.qty, maker_order->remaining_qty);
+            
+            // Generate trade event
+            TradeEvent trade;
+            trade.taker_id = order.id;
+            trade.maker_id = maker_order->order.id;
+            trade.price = best_price;
+            trade.qty = fill_qty;
+            trade.ts = time_source_->now_ns();
+            out_trades.push_back(trade);
+            
+            // Update quantities
+            order.qty -= fill_qty;
+            maker_order->remaining_qty -= fill_qty;
+            
+            // Remove maker if fully filled
+            if (maker_order->remaining_qty == 0) {
+                OrderId filled_id = maker_order->order.id;
+                level.pop_front();
+                order_index_.erase(filled_id);
+                
+                // Clean up empty level
+                if (level.empty()) {
+                    asks_.erase(it);
+                }
+            } else {
+                // Update level quantity
+                level.update_front_qty(maker_order->remaining_qty);
+            }
+        }
+    } else {
+        // Match sell order against bids
+        while (order.qty > 0 && !bids_.empty()) {
+            auto it = bids_.begin();
+            Price best_price = it->first;
+            BookLevel& level = it->second;
+            
+            // Check if we can match at this price
+            if (!order.is_market()) {
+                if (best_price.ticks < order.price.ticks) {
+                    break; // Price too low
+                }
+            }
+            
+            BookOrder* maker_order = level.front();
+            if (!maker_order) {
+                break; // Should not happen
+            }
+            
+            // Calculate fill quantity
+            uint64_t fill_qty = std::min(order.qty, maker_order->remaining_qty);
+            
+            // Generate trade event
+            TradeEvent trade;
+            trade.taker_id = order.id;
+            trade.maker_id = maker_order->order.id;
+            trade.price = best_price;
+            trade.qty = fill_qty;
+            trade.ts = time_source_->now_ns();
+            out_trades.push_back(trade);
+            
+            // Update quantities
+            order.qty -= fill_qty;
+            maker_order->remaining_qty -= fill_qty;
+            
+            // Remove maker if fully filled
+            if (maker_order->remaining_qty == 0) {
+                OrderId filled_id = maker_order->order.id;
+                level.pop_front();
+                order_index_.erase(filled_id);
+                
+                // Clean up empty level
+                if (level.empty()) {
+                    bids_.erase(it);
+                }
+            } else {
+                // Update level quantity
+                level.update_front_qty(maker_order->remaining_qty);
+            }
         }
     }
 }

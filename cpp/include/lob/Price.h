@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <compare>
+#include <functional>
 
 namespace lob {
 
