@@ -43,6 +43,7 @@ Makefile
 # Executables
 test_book_basic
 test_engine_fills
+test_new_features
 bench_match_engine
 lobsim
 

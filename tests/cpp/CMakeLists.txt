@@ -25,7 +25,12 @@ add_executable(test_engine_fills test_engine_fills.cpp)
 target_link_libraries(test_engine_fills PRIVATE lob_core GTest::gtest_main)
 target_include_directories(test_engine_fills PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../cpp/include)
 
+add_executable(test_new_features test_new_features.cpp)
+target_link_libraries(test_new_features PRIVATE lob_core GTest::gtest_main)
+target_include_directories(test_new_features PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../cpp/include)
+
 # Add tests
 include(GoogleTest)
 gtest_discover_tests(test_book_basic)
 gtest_discover_tests(test_engine_fills)
+gtest_discover_tests(test_new_features)

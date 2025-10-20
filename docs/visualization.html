@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOB Simulator - Live Order Book</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #00ff88;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background: #1a1f3a;
+        }
+        
+        .connected {
+            color: #00ff88;
+        }
+        
+        .disconnected {
+            color: #ff4444;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: #1a1f3a;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .panel h2 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #00ff88;
+            padding-bottom: 10px;
+        }
+        
+        .order-book {
+            font-size: 0.9em;
+        }
+        
+        .book-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 8px 0;
+            color: #888;
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+        }
+        
+        .book-level {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 5px 0;
+            border-bottom: 1px solid #2a2f4a;
+        }
+        
+        .book-level.ask {
+            color: #ff6b6b;
+        }
+        
+        .book-level.bid {
+            color: #4ecdc4;
+        }
+        
+        .spread {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            background: #2a2f4a;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .trades {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .trade-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #2a2f4a;
+            border-radius: 5px;
+            border-left: 3px solid #00ff88;
+        }
+        
+        .trade-item.buy {
+            border-left-color: #4ecdc4;
+        }
+        
+        .trade-item.sell {
+            border-left-color: #ff6b6b;
+        }
+        
+        .trade-time {
+            color: #888;
+            font-size: 0.8em;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-box {
+            background: #2a2f4a;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 0.8em;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            color: #00ff88;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #00ff88;
+            color: #0a0e27;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #00cc6f;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        input {
+            background: #2a2f4a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            padding: 8px;
+            font-size: 1em;
+            border-radius: 5px;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 LOB Simulator - Live Order Book Visualization</h1>
+        
+        <div class="status" id="status">
+            <span class="disconnected">⚫ Disconnected</span>
+        </div>
+        
+        <div class="controls">
+            <label>WebSocket URL:</label>
+            <input type="text" id="wsUrl" value="ws://localhost:8080" size="30">
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        </div>
+        
+        <div class="dashboard">
+            <div class="panel">
+                <h2>📚 Order Book Depth</h2>
+                <div class="order-book">
+                    <div class="book-header">
+                        <div>Price</div>
+                        <div>Quantity</div>
+                        <div>Orders</div>
+                    </div>
+                    <div id="asks"></div>
+                    <div class="spread" id="spread">Spread: --</div>
+                    <div id="bids"></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>💹 Recent Trades</h2>
+                <div class="trades" id="trades">
+                    <p style="color: #888; text-align: center;">No trades yet...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>📈 Statistics</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-label">Total Trades</div>
+                    <div class="stat-value" id="tradeCount">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Total Volume</div>
+                    <div class="stat-value" id="totalVolume">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Last Price</div>
+                    <div class="stat-value" id="lastPrice">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        let tradeCount = 0;
+        let totalVolume = 0;
+        
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            ws = new WebSocket(url);
+            
+            ws.onopen = () => {
+                document.getElementById('status').innerHTML = 
+                    '<span class="connected">🟢 Connected</span>';
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                console.log('Connected to WebSocket');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleMessage(msg);
+                } catch (e) {
+                    console.error('Failed to parse message:', e);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('status').innerHTML = 
+                    '<span class="disconnected">⚫ Disconnected</span>';
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                console.log('Disconnected from WebSocket');
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'trade':
+                    handleTrade(msg.data);
+                    break;
+                case 'booktop':
+                    handleBookTop(msg.data);
+                    break;
+                case 'depth':
+                    handleDepth(msg.data);
+                    break;
+            }
+        }
+        
+        function handleTrade(data) {
+            tradeCount++;
+            totalVolume += data.qty || 0;
+            
+            document.getElementById('tradeCount').textContent = tradeCount;
+            document.getElementById('totalVolume').textContent = totalVolume;
+            
+            if (data.price) {
+                document.getElementById('lastPrice').textContent = 
+                    '$' + (data.price / 100).toFixed(2);
+            }
+            
+            const tradesDiv = document.getElementById('trades');
+            const tradeItem = document.createElement('div');
+            tradeItem.className = 'trade-item';
+            tradeItem.innerHTML = `
+                <div>${data.qty} @ $${(data.price / 100).toFixed(2)}</div>
+                <div class="trade-time">${new Date(data.ts / 1000000).toLocaleTimeString()}</div>
+            `;
+            
+            tradesDiv.insertBefore(tradeItem, tradesDiv.firstChild);
+            
+            // Keep only last 20 trades
+            while (tradesDiv.children.length > 20) {
+                tradesDiv.removeChild(tradesDiv.lastChild);
+            }
+        }
+        
+        function handleBookTop(data) {
+            const spread = (data.best_ask - data.best_bid) / 100;
+            document.getElementById('spread').textContent = 
+                `Spread: $${spread.toFixed(2)}`;
+        }
+        
+        function handleDepth(data) {
+            // Update asks
+            const asksDiv = document.getElementById('asks');
+            asksDiv.innerHTML = '';
+            (data.asks || []).reverse().forEach(level => {
+                const div = document.createElement('div');
+                div.className = 'book-level ask';
+                div.innerHTML = `
+                    <div>$${(level.price / 100).toFixed(2)}</div>
+                    <div>${level.qty}</div>
+                    <div>${level.orders || 0}</div>
+                `;
+                asksDiv.appendChild(div);
+            });
+            
+            // Update bids
+            const bidsDiv = document.getElementById('bids');
+            bidsDiv.innerHTML = '';
+            (data.bids || []).forEach(level => {
+                const div = document.createElement('div');
+                div.className = 'book-level bid';
+                div.innerHTML = `
+                    <div>$${(level.price / 100).toFixed(2)}</div>
+                    <div>${level.qty}</div>
+                    <div>${level.orders || 0}</div>
+                `;
+                bidsDiv.appendChild(div);
+            });
+        }
+        
+        // Auto-connect on load (optional)
+        // window.onload = connect;
+    </script>
+</body>
+</html>
